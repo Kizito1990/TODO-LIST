@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render,redirect
 from django.views.generic.list import ListView
 from django.views.generic.detail import DetailView
 from django.views.generic.edit import CreateView,UpdateView,DeleteView,FormView
@@ -19,6 +19,25 @@ class CustomLoginView(LoginView):
 
     def success_url(self):
         return reverse_lazy('tasks')
+
+
+class RegisterPage(FormView):
+    template_name = 'todolist/register.html'
+    form_class = UserCreationForm
+    redirect_authenticated_user = True
+    success_url = reverse_lazy('tasks')
+
+    def form_valid(self, form):
+        user = form.save()
+        if user is not None:
+            login(self.request, user)
+        return super(RegisterPage, self).form_valid(form)
+
+    def get(self, *args, **kwargs):
+        if self.request.user.is_authenticated:
+            return redirect('tasks')
+        return super(RegisterPage,self).get(*args, **kwargs)
+
 class TaskList(LoginRequiredMixin, ListView):
     model = Tasks
     context_object_name = 'tasks'
@@ -38,6 +57,12 @@ class TaskList(LoginRequiredMixin, ListView):
         # Count completed and uncompleted tasks
         completed_count = user_tasks.filter(complete=True).count()
         uncompleted_count = user_tasks.filter(complete=False).count()
+
+        search_input = self.request.GET.get('search-area') or ''
+        if search_input:
+            context['tasks'] = context['tasks'].filter(title__startswith = search_input)
+        context['search_input'] = search_input
+
 
         context['user_tasks'] = user_tasks
         context['completed_count'] = completed_count
